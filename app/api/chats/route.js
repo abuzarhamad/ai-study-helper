@@ -3,6 +3,7 @@ import connectDB from "@/lib/mongodb";
 import Chat from "@/models/Chat";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {
@@ -28,9 +29,7 @@ export async function GET() {
       {
         error: "Failed to load chats.",
       },
-      {
-        status: 500,
-      },
+      { status: 500 },
     );
   }
 }
@@ -42,8 +41,7 @@ export async function POST(request) {
     const body = await request.json();
 
     const title =
-      typeof body?.title === "string" &&
-      body.title.trim()
+      typeof body?.title === "string" && body.title.trim()
         ? body.title.trim().slice(0, 100)
         : "New chat";
 
@@ -62,9 +60,7 @@ export async function POST(request) {
           updatedAt: chat.updatedAt,
         },
       },
-      {
-        status: 201,
-      },
+      { status: 201 },
     );
   } catch (error) {
     console.error("POST /api/chats error:", error);
@@ -73,9 +69,7 @@ export async function POST(request) {
       {
         error: "Failed to create chat.",
       },
-      {
-        status: 500,
-      },
+      { status: 500 },
     );
   }
 }
