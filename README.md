@@ -20,6 +20,21 @@ You can start editing the page by modifying `app/page.js`. The page auto-updates
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
+## Authentication configuration
+
+Email and password registration and login use MongoDB. Configure `MONGO_URI` (or
+`MONGODB_URI`) with a reachable MongoDB connection string and set `AUTH_SECRET`
+to a random secret before running the app. Self-hosted deployments must also set
+`AUTH_TRUST_HOST=true` when the app is behind a trusted proxy. Generate a secret with:
+
+```bash
+node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
+```
+
+GitHub and Google sign-in are optional. To enable either provider, set both its
+ID and secret (`GITHUB_ID` and `GITHUB_SECRET`, or `GOOGLE_ID` and
+`GOOGLE_SECRET`).
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:

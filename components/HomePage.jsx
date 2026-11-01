@@ -24,6 +24,7 @@ import { Settings } from "./Settings";
 import { defaultSettings } from "@/data/User";
 import { ChatMessage } from "./ChatMessage";
 import { Typing } from "./Typing";
+import LogoutButton from "./auth/LogoutButton";
 
 export default function Home() {
   const [messages, setMessages] = useState([]);
@@ -592,6 +593,15 @@ export default function Home() {
               >
                 <Trash2 size={17} />
               </button>
+              {/* <button
+                type="button"
+                
+                className="rounded-lg p-2 text-red-500 transition cursor-pointer hover:bg-red/[0.06] hover:bg-red-500 hover:text-white disabled:pointer-events-none disabled:opacity-30"
+              
+              >
+                LogoutButton
+              </button> */}
+              <LogoutButton />
             </div>
           </header>
 
