@@ -1,27 +1,13 @@
 import mongoose from "mongoose";
-
-const MessageSchema = new mongoose.Schema(
-  {
-    role: {
-      type: String,
-      enum: ["user", "assistant"],
-      required: true,
-    },
-
-    content: {
-      type: String,
-      required: true,
-      maxlength: 20000,
-    },
-  },
-  {
-    _id: true,
-    timestamps: true,
-  },
-);
+import MessageSchema from "./message";
 
 const ChatSchema = new mongoose.Schema(
   {
+    userId: {
+      type: String,
+      required: true,
+      index: true,
+    },
     title: {
       type: String,
       required: true,
@@ -29,7 +15,23 @@ const ChatSchema = new mongoose.Schema(
       maxlength: 100,
       trim: true,
     },
-
+    settings: {
+      style: {
+        type: String,
+        enum: ["balanced", "teacher", "concise"],
+        default: "balanced",
+      },
+      length: {
+        type: String,
+        enum: ["short", "medium", "long"],
+        default: "medium",
+      },
+      level: {
+        type: String,
+        enum: ["simple", "standard", "advanced"],
+        default: "standard",
+      },
+    },
     messages: {
       type: [MessageSchema],
       default: [],
@@ -40,9 +42,7 @@ const ChatSchema = new mongoose.Schema(
   },
 );
 
-ChatSchema.index({
-  updatedAt: -1,
-});
+ChatSchema.index({ userId: 1, updatedAt: -1 });
 
 const Chat = mongoose.models.Chat || mongoose.model("Chat", ChatSchema);
 

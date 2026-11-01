@@ -1,7 +1,10 @@
 import OpenAI from "openai";
 import { NextResponse } from "next/server";
+import { getAuthenticatedUserId } from "@/lib/api-auth";
 import connectDB from "@/lib/mongodb";
+import { normalizeStudySettings } from "@/lib/study-settings";
 import Chat from "@/models/Chat";
+import Usage from "@/models/usage";
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -10,22 +13,76 @@ const openai = new OpenAI({
 
 export async function POST(request) {
   try {
-    const body = await request.json();
-    console.log(body);
+    const userId = await getAuthenticatedUserId();
+    if (!userId) {
+      return NextResponse.json({ error: "Authentication required." }, { status: 401 });
+    }
 
-    const message = body?.message?.trim();
-    const history = Array.isArray(body?.history) ? body.history : [];
-    const chatId = body?.chatId || null;
-    const settings = body?.settings || {};
+    let body;
+    try {
+      body = await request.json();
+    } catch (error) {
+      if (error instanceof SyntaxError) {
+        return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
+      }
+      throw error;
+    }
 
-    if (!message) {
+    const message =
+      typeof body?.message === "string" ? body.message.trim() : "";
+    const history = Array.isArray(body?.history)
+      ? body.history
+          .filter(
+            (item) =>
+              item &&
+              (item.role === "user" || item.role === "assistant") &&
+              typeof item.content === "string" &&
+              item.content.trim(),
+          )
+          .slice(-10)
+          .map(({ role, content }) => ({
+            role,
+            content: content.trim().slice(0, 20000),
+          }))
+      : [];
+    const chatId = typeof body?.chatId === "string" ? body.chatId : null;
+    const settings = normalizeStudySettings(body?.settings);
+
+    if (!message || message.length > 20000) {
       return NextResponse.json(
-        { error: "Please enter a question." },
+        { error: "Enter a question of 1 to 20,000 characters." },
         { status: 400 },
       );
     }
 
+    if (!settings) {
+      return NextResponse.json({ error: "Invalid study settings." }, { status: 400 });
+    }
+
+    if (chatId && !/^[a-f\d]{24}$/i.test(chatId)) {
+      return NextResponse.json({ error: "Invalid chat ID." }, { status: 400 });
+    }
+
     await connectDB();
+
+    let chat;
+    if (chatId) {
+      chat = await Chat.findOne({ _id: chatId, userId });
+
+      if (!chat) {
+        return NextResponse.json({ error: "Chat not found." }, { status: 404 });
+      }
+    } else {
+      const title =
+        message.length > 60 ? `${message.slice(0, 60).trim()}...` : message;
+
+      chat = new Chat({
+        userId,
+        title,
+        settings,
+        messages: [],
+      });
+    }
 
     const messages = [
       {
@@ -52,15 +109,7 @@ Explanation level: ${settings.level || "standard"}
         `,
       },
 
-      ...history
-        .filter(
-          (item) =>
-            item &&
-            (item.role === "user" || item.role === "assistant") &&
-            typeof item.content === "string" &&
-            item.content.trim(),
-        )
-        .slice(-10),
+      ...history,
 
       {
         role: "user",
@@ -101,41 +150,7 @@ Explanation level: ${settings.level || "standard"}
       }
     }
 
-    /*
-     * Find existing chat or create a new one.
-     */
-    let chat;
-
-    if (chatId) {
-      chat = await Chat.findById(chatId);
-
-      if (!chat) {
-        return NextResponse.json(
-          {
-            error: "Chat not found.",
-          },
-          {
-            status: 404,
-          },
-        );
-      }
-    } else {
-      /*
-       * Generate a simple title from the first question.
-       */
-      const title =
-        message.length > 60 ? `${message.slice(0, 60).trim()}...` : message;
-
-      chat = new Chat({
-        title,
-        settings: {
-          style: settings.style || "balanced",
-          length: settings.length || "medium",
-          level: settings.level || "standard",
-        },
-        messages: [],
-      });
-    }
+    chat.settings = settings;
 
     /*
      * Store both sides of the conversation.
@@ -152,10 +167,43 @@ Explanation level: ${settings.level || "standard"}
 
     await chat.save();
 
+    const tokenUsage = completion.usage || {};
+    const inputTokens =
+      Number.isSafeInteger(tokenUsage.prompt_tokens) && tokenUsage.prompt_tokens >= 0
+      ? tokenUsage.prompt_tokens
+      : null;
+    const outputTokens =
+      Number.isSafeInteger(tokenUsage.completion_tokens) &&
+      tokenUsage.completion_tokens >= 0
+      ? tokenUsage.completion_tokens
+      : null;
+    const totalTokens =
+      Number.isSafeInteger(tokenUsage.total_tokens) && tokenUsage.total_tokens >= 0
+      ? tokenUsage.total_tokens
+      : inputTokens !== null && outputTokens !== null
+        ? inputTokens + outputTokens
+        : null;
+
+    await Usage.create({
+      userId,
+      chatId: chat._id,
+      provider: "openrouter",
+      model: completion.model || "openrouter/free",
+      requestId: completion.id || "",
+      inputTokens,
+      outputTokens,
+      totalTokens,
+    });
+
     return NextResponse.json({
       success: true,
       chatId: chat._id.toString(),
       reply,
+      usage: {
+        inputTokens,
+        outputTokens,
+        totalTokens,
+      },
     });
   } catch (error) {
     console.error("Study API error:", error);

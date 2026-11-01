@@ -35,6 +35,28 @@ GitHub and Google sign-in are optional. To enable either provider, set both its
 ID and secret (`GITHUB_ID` and `GITHUB_SECRET`, or `GOOGLE_ID` and
 `GOOGLE_SECRET`).
 
+## User data APIs
+
+All data APIs require a signed-in user and only return or modify that user's
+records. The app persists chat messages inside their chat document.
+
+- `GET /api/chats`, `POST /api/chats`, and `GET/PATCH/DELETE /api/chats/[chatId]`
+  manage chats and their messages.
+- `POST /api/study` generates an answer, saves it to the owned chat, and records
+  the provider-reported token counts.
+- `GET/POST /api/study-sessions` and
+  `GET/PATCH/DELETE /api/study-sessions/[sessionId]` manage saved study notes.
+  Create with `topic`, `explanation`, and optional `difficulty`, `keyPoints`,
+  and `example`.
+- `GET/POST /api/documents` and `GET/PATCH/DELETE /api/documents/[documentId]`
+  store and manage text or Markdown documents. Create with `title` and `content`;
+  optional `fileName` and `contentType` are supported. Document text is limited
+  to 1 MB; binary file uploads are not supported.
+- `GET /api/usage` returns a user's request/token summary and recent usage
+  records. Optional `limit`, `from`, and `to` query parameters filter results.
+  Usage records are created by `/api/study`, not submitted by clients. Costs are
+  returned as `null` until the provider supplies cost data.
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:

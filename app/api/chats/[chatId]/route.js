@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import mongoose from "mongoose";
+import { getAuthenticatedUserId } from "@/lib/api-auth";
 import connectDB from "@/lib/mongodb";
+import { normalizeStudySettings } from "@/lib/study-settings";
 import Chat from "@/models/Chat";
 
 export const runtime = "nodejs";
@@ -11,6 +13,11 @@ function isValidId(id) {
 
 export async function GET(request, { params }) {
   try {
+    const userId = await getAuthenticatedUserId();
+    if (!userId) {
+      return NextResponse.json({ error: "Authentication required." }, { status: 401 });
+    }
+
     const { chatId } = await params;
 
     if (!isValidId(chatId)) {
@@ -22,7 +29,7 @@ export async function GET(request, { params }) {
 
     await connectDB();
 
-    const chat = await Chat.findById(chatId).lean();
+    const chat = await Chat.findOne({ _id: chatId, userId }).lean();
 
     if (!chat) {
       return NextResponse.json(
@@ -35,6 +42,7 @@ export async function GET(request, { params }) {
       chat: {
         id: chat._id.toString(),
         title: chat.title,
+        settings: chat.settings,
         messages: chat.messages.map((message) => ({
           id: message._id.toString(),
           role: message.role,
@@ -57,6 +65,11 @@ export async function GET(request, { params }) {
 
 export async function DELETE(request, { params }) {
   try {
+    const userId = await getAuthenticatedUserId();
+    if (!userId) {
+      return NextResponse.json({ error: "Authentication required." }, { status: 401 });
+    }
+
     const { chatId } = await params;
 
     if (!isValidId(chatId)) {
@@ -68,7 +81,7 @@ export async function DELETE(request, { params }) {
 
     await connectDB();
 
-    const deleted = await Chat.findByIdAndDelete(chatId);
+    const deleted = await Chat.findOneAndDelete({ _id: chatId, userId });
 
     if (!deleted) {
       return NextResponse.json(
@@ -95,6 +108,11 @@ export async function DELETE(request, { params }) {
 
 export async function PATCH(request, { params }) {
   try {
+    const userId = await getAuthenticatedUserId();
+    if (!userId) {
+      return NextResponse.json({ error: "Authentication required." }, { status: 401 });
+    }
+
     const { chatId } = await params;
 
     if (!isValidId(chatId)) {
@@ -104,36 +122,62 @@ export async function PATCH(request, { params }) {
       );
     }
 
-    const body = await request.json();
+    let body;
+    try {
+      body = await request.json();
+    } catch (error) {
+      if (error instanceof SyntaxError) {
+        return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
+      }
+      throw error;
+    }
 
     await connectDB();
 
     const update = {};
 
     if (typeof body?.title === "string") {
-      update.title = body.title
-        .trim()
-        .slice(0, 100);
+      const title = body.title.trim();
+      if (!title || title.length > 100) {
+        return NextResponse.json({ error: "Title must be 1 to 100 characters." }, { status: 400 });
+      }
+      update.title = title;
+    }
+
+    if (body?.settings !== undefined) {
+      const settings = normalizeStudySettings(body.settings);
+      if (!settings) {
+        return NextResponse.json({ error: "Invalid study settings." }, { status: 400 });
+      }
+      update.settings = settings;
     }
 
     if (Array.isArray(body?.messages)) {
-      update.messages = body.messages
-        .filter(
+      if (
+        body.messages.length > 500 ||
+        body.messages.some(
           (message) =>
-            message &&
-            (message.role === "user" ||
-              message.role === "assistant") &&
-            typeof message.content === "string" &&
-            message.content.trim(),
+            !message ||
+            !["user", "assistant"].includes(message.role) ||
+            typeof message.content !== "string" ||
+            !message.content.trim() ||
+            message.content.length > 20000,
         )
-        .map((message) => ({
+      ) {
+        return NextResponse.json({ error: "Invalid chat messages." }, { status: 400 });
+      }
+      update.messages = body.messages.map((message) => ({
           role: message.role,
-          content: message.content.slice(0, 20000),
+          content: message.content.trim(),
         }));
     }
 
-    const chat = await Chat.findByIdAndUpdate(
-      chatId,
+    if (!Object.keys(update).length) {
+      return NextResponse.json({ error: "No valid chat changes provided." }, { status: 400 });
+    }
+
+    const chat = await Chat.findOneAndUpdate(
+      { _id: chatId, userId },
       {
         $set: update,
       },
@@ -154,6 +198,7 @@ export async function PATCH(request, { params }) {
       chat: {
         id: chat._id.toString(),
         title: chat.title,
+        settings: chat.settings,
         messages: chat.messages,
         updatedAt: chat.updatedAt,
       },
