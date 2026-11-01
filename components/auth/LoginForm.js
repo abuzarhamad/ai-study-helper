@@ -4,6 +4,7 @@ import { useState } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import toast from "react-hot-toast";
 
 export default function LoginForm() {
   const router = useRouter();
@@ -11,13 +12,11 @@ export default function LoginForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
-  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
   async function handleSubmit(e) {
     e.preventDefault();
 
-    setError("");
     setLoading(true);
 
     try {
@@ -29,15 +28,16 @@ export default function LoginForm() {
       });
 
       if (!result || result.error) {
-        setError("Invalid email or password.");
+        toast.error("Invalid email or password.");
         return;
       }
 
+      toast.success("Signed in successfully.");
       router.replace(result.url || "/");
       router.refresh();
     } catch (error) {
       console.error("Login failed:", error);
-      setError("Unable to sign in right now. Please try again.");
+      toast.error("Unable to sign in right now. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -51,12 +51,6 @@ export default function LoginForm() {
           Sign in to your account
         </p>
       </div>
-
-      {error && (
-        <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
-          {error}
-        </p>
-      )}
 
       <label htmlFor="email" className="block text-sm font-medium text-slate-700 dark:text-slate-200">
         Email

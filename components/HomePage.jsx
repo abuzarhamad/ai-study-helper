@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Send,
   Square,
@@ -16,7 +16,11 @@ import {
   Plus,
   ChevronDown,
   MessageSquare,
+  Search,
+  MoreHorizontal,
+  Trash,
 } from "lucide-react";
+import toast from "react-hot-toast";
 import { Welcome } from "./Welcome";
 import { SidebarButton } from "./SidebarButton";
 import { MarkdownContent } from "./MarkdownContent";
@@ -24,9 +28,10 @@ import { Settings } from "./Settings";
 import { defaultSettings } from "@/data/User";
 import { ChatMessage } from "./ChatMessage";
 import { Typing } from "./Typing";
-import LogoutButton from "./auth/LogoutButton";
+import Link from "next/link";
+import UserDropdown from "./homepage/Dropdown";
 
-export default function Home() {
+export default function Home({ user }) {
   const [messages, setMessages] = useState([]);
   const [chats, setChats] = useState([]);
 
@@ -35,11 +40,13 @@ export default function Home() {
 
   const [loading, setLoading] = useState(false);
   const [chatsLoading, setChatsLoading] = useState(true);
+  const [deletingChatId, setDeletingChatId] = useState(null);
 
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const [settings, setSettings] = useState(defaultSettings);
+  const [chatSearch, setChatSearch] = useState("");
 
   const textareaRef = useRef(null);
   const messagesEndRef = useRef(null);
@@ -48,10 +55,6 @@ export default function Home() {
   /* --------------------------------------------- */
   /* INITIAL LOAD */
   /* --------------------------------------------- */
-
-  useEffect(() => {
-    loadChats();
-  }, []);
 
   useEffect(() => {
     textareaRef.current?.focus();
@@ -66,9 +69,7 @@ export default function Home() {
     });
   }, [messages]);
 
-
- 
-  async function loadChats() {
+  const loadChats = useCallback(async () => {
     try {
       setChatsLoading(true);
 
@@ -85,11 +86,46 @@ export default function Home() {
       setChats(data.chats || []);
     } catch (error) {
       console.error("Load chats error:", error);
+      toast.error("Could not load your chats.");
     } finally {
       setChatsLoading(false);
     }
-  }
+  }, []);
 
+  useEffect(() => {
+    loadChats();
+  }, [loadChats]);
+
+  async function deleteChat(id, title) {
+    if (!window.confirm(`Delete "${title}"? This cannot be undone.`)) {
+      return;
+    }
+
+    setDeletingChatId(id);
+
+    try {
+      const response = await fetch(`/api/chats/${id}`, {
+        method: "DELETE",
+      });
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data?.error || "Failed to delete chat.");
+      }
+
+      setChats((currentChats) => currentChats.filter((chat) => chat.id !== id));
+      toast.success("Chat deleted.");
+
+      if (chatId === id) {
+        clearChat();
+      }
+    } catch (error) {
+      console.error("Delete chat error:", error);
+      toast.error(error.message || "Failed to delete chat. Please try again.");
+    } finally {
+      setDeletingChatId(null);
+    }
+  }
 
   async function openChat(id) {
     if (!id) return;
@@ -134,10 +170,10 @@ export default function Home() {
       });
     } catch (error) {
       console.error("Open chat error:", error);
+      toast.error(error.message || "Could not open this chat.");
     }
   }
 
-  
   function clearChat() {
     abortRef.current?.abort();
     abortRef.current = null;
@@ -154,7 +190,6 @@ export default function Home() {
     });
   }
 
- 
   function resizeTextarea() {
     const textarea = textareaRef.current;
 
@@ -260,6 +295,7 @@ export default function Home() {
           content: error?.message || "Something went wrong. Please try again.",
         },
       ]);
+      toast.error(error?.message || "Something went wrong. Please try again.");
     } finally {
       setLoading(false);
       abortRef.current = null;
@@ -270,13 +306,11 @@ export default function Home() {
     }
   }
 
- 
   function stopGeneration() {
     abortRef.current?.abort();
     abortRef.current = null;
     setLoading(false);
   }
-
 
   async function regenerateMessage(messageId) {
     if (loading) return;
@@ -304,7 +338,6 @@ export default function Home() {
     await sendMessage(previousUserMessage.content);
   }
 
- 
   function handleSubmit(event) {
     event.preventDefault();
     sendMessage();
@@ -316,8 +349,6 @@ export default function Home() {
       sendMessage();
     }
   }
-
- 
 
   return (
     <div className="h-dvh overflow-hidden bg-[#212121] text-zinc-100">
@@ -482,31 +513,14 @@ export default function Home() {
               ) : (
                 <div className="space-y-0.5">
                   {chats.map((chat) => (
-                    <button
-                      type="button"
+                    <ChatHistoryItem
                       key={chat.id}
-                      onClick={() => openChat(chat.id)}
-                      className={`
-                        group flex w-full items-center
-                        rounded-lg px-3 py-2.5
-                        text-left text-sm
-                        transition
-                        ${
-                          chat.id === chatId
-                            ? "bg-white/[0.08] text-zinc-100"
-                            : "text-zinc-400 hover:bg-white/[0.06] hover:text-zinc-100"
-                        }
-                      `}
-                    >
-                      <MessageSquare
-                        size={14}
-                        className="mr-2.5 shrink-0 text-zinc-600"
-                      />
-
-                      <span className="min-w-0 flex-1 truncate">
-                        {chat.title}
-                      </span>
-                    </button>
+                      chat={chat}
+                      active={chat.id === chatId}
+                      deleting={deletingChatId === chat.id}
+                      onOpen={() => openChat(chat.id)}
+                      onDelete={() => deleteChat(chat.id, chat.title)}
+                    />
                   ))}
                 </div>
               )}
@@ -601,7 +615,19 @@ export default function Home() {
               >
                 LogoutButton
               </button> */}
-              <LogoutButton />
+              {user ? (
+                <UserDropdown
+                  user={user}
+                  onOpenSettings={() => setSettingsOpen(true)}
+                />
+              ) : (
+                <Link
+                  href="/login"
+                  className="rounded-xl bg-blue-600 px-5 py-2 text-white"
+                >
+                  Login
+                </Link>
+              )}
             </div>
           </header>
 
@@ -730,6 +756,107 @@ export default function Home() {
           </div>
         </main>
       </div>
+    </div>
+  );
+}
+
+function ChatHistoryItem({ chat, active, deleting, onOpen, onDelete }) {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const itemRef = useRef(null);
+  const menuButtonRef = useRef(null);
+
+  useEffect(() => {
+    if (!menuOpen) {
+      return undefined;
+    }
+
+    function handlePointerDown(event) {
+      if (!itemRef.current?.contains(event.target)) {
+        setMenuOpen(false);
+      }
+    }
+
+    function handleKeyDown(event) {
+      if (event.key === "Escape") {
+        setMenuOpen(false);
+        menuButtonRef.current?.focus();
+      }
+    }
+
+    document.addEventListener("pointerdown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [menuOpen]);
+
+  async function handleDelete() {
+    setMenuOpen(false);
+    await onDelete();
+  }
+
+  return (
+    <div
+      ref={itemRef}
+      className={`group relative flex items-center rounded-lg transition ${
+        active
+          ? "bg-white/[0.08] text-zinc-100"
+          : "text-zinc-400 hover:bg-white/[0.06] hover:text-zinc-100"
+      }`}
+    >
+      <button
+        type="button"
+        onClick={onOpen}
+        title={chat.title}
+        className="flex min-w-0 flex-1 items-center rounded-l-lg px-3 py-2.5 text-left text-sm"
+      >
+        <MessageSquare
+          size={14}
+          aria-hidden="true"
+          className="mr-2.5 shrink-0 text-zinc-600"
+        />
+        <span className="min-w-0 flex-1 truncate">{chat.title}</span>
+      </button>
+
+      <button
+        ref={menuButtonRef}
+        type="button"
+        aria-label={`More options for ${chat.title}`}
+        aria-haspopup="menu"
+        aria-expanded={menuOpen}
+        disabled={deleting}
+        onClick={() => setMenuOpen((isOpen) => !isOpen)}
+        className="mr-1 rounded-md p-1.5 text-zinc-500 opacity-100 transition hover:bg-white/[0.1] hover:text-white focus:opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 group-hover:opacity-100 sm:opacity-0 disabled:cursor-wait disabled:opacity-50"
+      >
+        {deleting ? (
+          <span
+            aria-label="Deleting chat"
+            className="block h-4 w-4 animate-spin rounded-full border-2 border-zinc-500 border-t-transparent"
+          />
+        ) : (
+          <MoreHorizontal size={16} aria-hidden="true" />
+        )}
+      </button>
+
+      {menuOpen && (
+        <div
+          role="menu"
+          aria-label={`Options for ${chat.title}`}
+          className="absolute right-1 top-full z-30 mt-1 min-w-36 rounded-lg border border-white/10 bg-[#242424] p-1 shadow-xl"
+        >
+          <button
+            type="button"
+            role="menuitem"
+            onClick={handleDelete}
+            className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-red-400 transition hover:bg-red-500/10 hover:text-red-300 focus:bg-red-500/10 focus:outline-none"
+          >
+            <Trash size={14} aria-hidden="true" />
+            Delete chat
+          </button>
+        </div>
+      )}
     </div>
   );
 }

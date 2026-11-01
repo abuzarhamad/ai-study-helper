@@ -1,6 +1,7 @@
 "use client";
 
 import { signIn } from "next-auth/react";
+import toast from "react-hot-toast";
 
 const providerLabels = {
   github: "Continue with GitHub",
@@ -12,6 +13,15 @@ export default function SocialLoginButtons({ providers }) {
     return null;
   }
 
+  async function handleSignIn(provider) {
+    try {
+      await signIn(provider, { callbackUrl: "/" });
+    } catch (error) {
+      console.error(`${provider} sign-in failed:`, error);
+      toast.error(`Unable to sign in with ${providerLabels[provider]}.`);
+    }
+  }
+
   return (
     <>
       <div className="mb-6 space-y-3">
@@ -19,7 +29,7 @@ export default function SocialLoginButtons({ providers }) {
           <button
             key={provider}
             type="button"
-            onClick={() => signIn(provider, { callbackUrl: "/" })}
+            onClick={() => handleSignIn(provider)}
             className="w-full rounded-lg border border-slate-300 px-4 py-3 font-medium text-slate-700 transition hover:border-slate-400 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-700"
           >
             {providerLabels[provider]}

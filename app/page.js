@@ -12,7 +12,7 @@ const page = async () => {
 
   return (
     <div>
-      <Home />
+      <Home user={session.user} />
     </div>
   );
 };

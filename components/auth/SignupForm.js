@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
+import toast from "react-hot-toast";
 
 export default function SignupForm() {
   const router = useRouter();
@@ -12,13 +13,11 @@ export default function SignupForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
-  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
   async function handleSubmit(e) {
     e.preventDefault();
 
-    setError("");
     setLoading(true);
 
     try {
@@ -37,7 +36,7 @@ export default function SignupForm() {
       const data = await response.json();
 
       if (!response.ok) {
-        setError(data.message || "Signup failed.");
+        toast.error(data.message || "Signup failed.");
         return;
       }
 
@@ -49,15 +48,17 @@ export default function SignupForm() {
       });
 
       if (!result || result.error) {
+        toast.success("Account created. Sign in to continue.");
         router.replace("/login?registered=true");
         return;
       }
 
+      toast.success("Account created successfully.");
       router.replace(result.url || "/");
       router.refresh();
     } catch (error) {
       console.error("Signup failed:", error);
-      setError("Unable to create your account right now. Please try again.");
+      toast.error("Unable to create your account right now. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -73,12 +74,6 @@ export default function SignupForm() {
           Create your new account
         </p>
       </div>
-
-      {error && (
-        <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
-          {error}
-        </p>
-      )}
 
       <label htmlFor="name" className="block text-sm font-medium text-slate-700 dark:text-slate-200">
         Name
