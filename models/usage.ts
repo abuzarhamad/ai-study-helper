@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import type { InferSchemaType, Model } from "mongoose";
 
 const UsageSchema = new mongoose.Schema(
   {
@@ -53,6 +54,10 @@ const UsageSchema = new mongoose.Schema(
 
 UsageSchema.index({ userId: 1, createdAt: -1 });
 
-const Usage = mongoose.models.Usage || mongoose.model("Usage", UsageSchema);
+export type UsageData = InferSchemaType<typeof UsageSchema>;
+
+const Usage =
+  (mongoose.models.Usage as Model<UsageData> | undefined) ??
+  mongoose.model<UsageData>("Usage", UsageSchema);
 
 export default Usage;

@@ -75,7 +75,7 @@ export async function PATCH(request) {
     await connectDB();
 
     // Only allow approved profile fields
-    const updateData = {};
+    const updateData: Record<string, unknown> = {};
 
     for (const field of allowedFields) {
       if (body[field] !== undefined) {
@@ -112,11 +112,11 @@ export async function PATCH(request) {
       );
     }
 
-    if (updateData.name) {
+    if (typeof updateData.name === "string") {
       updateData.name = updateData.name.trim();
     }
 
-    if (updateData.username) {
+    if (typeof updateData.username === "string") {
       updateData.username = updateData.username
         .trim()
         .toLowerCase();

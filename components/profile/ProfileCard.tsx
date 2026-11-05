@@ -1,5 +1,23 @@
 
-export default function ProfileCard({ user }) {
+interface ProfileCardUser {
+  name: string;
+  email: string;
+  username?: string;
+  profileImage?: string;
+  coverImage?: string;
+  bio?: string;
+  headline?: string;
+  phone?: string;
+  website?: string;
+  location?: { city?: string; country?: string };
+  gender?: string;
+  dateOfBirth?: string | Date | null;
+  skills?: string[];
+  interests?: string[];
+  socialLinks?: Record<string, string>;
+}
+
+export default function ProfileCard({ user }: { user: ProfileCardUser }) {
   return (
     <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-sm overflow-hidden border border-gray-200 dark:border-gray-800">
 
@@ -148,7 +166,7 @@ export default function ProfileCard({ user }) {
   );
 }
 
-function Info({ label, value }) {
+function Info({ label, value }: { label: string; value: string | undefined }) {
   return (
     <div>
       <p className="text-sm text-gray-400">{label}</p>

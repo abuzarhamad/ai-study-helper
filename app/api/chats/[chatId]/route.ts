@@ -4,6 +4,7 @@ import { getAuthenticatedUserId } from "@/lib/api-auth";
 import connectDB from "@/lib/mongodb";
 import { normalizeStudySettings } from "@/lib/study-settings";
 import Chat from "@/models/Chat";
+import type { ChatData } from "@/models/Chat";
 
 export const runtime = "nodejs";
 
@@ -134,7 +135,7 @@ export async function PATCH(request, { params }) {
 
     await connectDB();
 
-    const update = {};
+    const update: Partial<Pick<ChatData, "title" | "settings" | "messages">> = {};
 
     if (typeof body?.title === "string") {
       const title = body.title.trim();

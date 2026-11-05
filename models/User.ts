@@ -1,5 +1,6 @@
 
 import mongoose from "mongoose";
+import type { InferSchemaType, Model } from "mongoose";
 
 const userSchema = new mongoose.Schema(
   {
@@ -134,6 +135,10 @@ const userSchema = new mongoose.Schema(
   }
 );
 
-const User = mongoose.models.users || mongoose.model("users", userSchema);
+export type UserData = InferSchemaType<typeof userSchema>;
+
+const User =
+  (mongoose.models.users as Model<UserData> | undefined) ??
+  mongoose.model<UserData>("users", userSchema);
 
 export default User;

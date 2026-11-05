@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import type { InferSchemaType, Model } from "mongoose";
 import MessageSchema from "./message";
 
 const ChatSchema = new mongoose.Schema(
@@ -44,6 +45,10 @@ const ChatSchema = new mongoose.Schema(
 
 ChatSchema.index({ userId: 1, updatedAt: -1 });
 
-const Chat = mongoose.models.Chat || mongoose.model("Chat", ChatSchema);
+export type ChatData = InferSchemaType<typeof ChatSchema>;
+
+const Chat =
+  (mongoose.models.Chat as Model<ChatData> | undefined) ??
+  mongoose.model<ChatData>("Chat", ChatSchema);
 
 export default Chat;

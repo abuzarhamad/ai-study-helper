@@ -60,13 +60,13 @@ export async function POST(request) {
       throw error;
     }
 
-    const { values, error } = parseStudySession(body);
-    if (error) {
-      return NextResponse.json({ error }, { status: 400 });
+    const parsed = parseStudySession(body);
+    if ("error" in parsed) {
+      return NextResponse.json({ error: parsed.error }, { status: 400 });
     }
 
     await connectDB();
-    const session = await StudySession.create({ ...values, userId });
+    const session = await StudySession.create({ ...parsed.values, userId });
 
     return NextResponse.json(
       {

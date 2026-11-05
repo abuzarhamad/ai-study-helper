@@ -52,13 +52,13 @@ export async function POST(request) {
       throw error;
     }
 
-    const { values, error } = parseDocument(body);
-    if (error) {
-      return NextResponse.json({ error }, { status: 400 });
+    const parsed = parseDocument(body);
+    if ("error" in parsed) {
+      return NextResponse.json({ error: parsed.error }, { status: 400 });
     }
 
     await connectDB();
-    const document = await Document.create({ ...values, userId });
+    const document = await Document.create({ ...parsed.values, userId });
 
     return NextResponse.json(
       { document: serializeDocument(document, true) },

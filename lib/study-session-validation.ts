@@ -1,10 +1,38 @@
-export function parseStudySession(body, partial = false) {
-  if (!body || typeof body !== "object" || Array.isArray(body)) {
+import type { StudySessionData } from "@/models/StudySession";
+
+type StudySessionValues = Pick<
+  StudySessionData,
+  "topic" | "difficulty" | "explanation" | "keyPoints" | "example"
+>;
+type ValidationResult<Value> = { error: string } | { values: Value };
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+export function parseStudySession(
+  body: unknown,
+): ValidationResult<StudySessionValues>;
+export function parseStudySession(
+  body: unknown,
+  partial: true,
+): ValidationResult<Partial<StudySessionValues>>;
+export function parseStudySession(
+  body: unknown,
+  partial = false,
+): ValidationResult<Partial<StudySessionValues>> {
+  if (!isRecord(body)) {
     return { error: "Invalid request body." };
   }
 
-  const values = {};
-  const fields = ["topic", "difficulty", "explanation", "keyPoints", "example"];
+  const values: Partial<StudySessionValues> = {};
+  const fields = [
+    "topic",
+    "difficulty",
+    "explanation",
+    "keyPoints",
+    "example",
+  ] as const;
 
   for (const field of fields) {
     if (partial && body[field] === undefined) {
@@ -62,7 +90,19 @@ export function parseStudySession(body, partial = false) {
     if (field === "example" && normalized.length > 10000) {
       return { error: "Example cannot exceed 10,000 characters." };
     }
-    values[field] = normalized;
+    if (field === "topic") {
+      values.topic = normalized;
+    } else if (field === "difficulty") {
+      values.difficulty = normalized as StudySessionValues["difficulty"];
+    } else if (field === "explanation") {
+      values.explanation = normalized;
+    } else {
+      values.example = normalized;
+    }
+  }
+
+  if (!partial) {
+    return { values: values as StudySessionValues };
   }
 
   return { values };

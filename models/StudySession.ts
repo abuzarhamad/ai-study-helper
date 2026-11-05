@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import type { InferSchemaType, Model } from "mongoose";
 
 const StudySessionSchema = new mongoose.Schema(
   {
@@ -45,8 +46,10 @@ const StudySessionSchema = new mongoose.Schema(
 
 StudySessionSchema.index({ userId: 1, updatedAt: -1 });
 
+export type StudySessionData = InferSchemaType<typeof StudySessionSchema>;
+
 const StudySession =
-  mongoose.models.StudySession ||
-  mongoose.model("StudySession", StudySessionSchema);
+  (mongoose.models.StudySession as Model<StudySessionData> | undefined) ??
+  mongoose.model<StudySessionData>("StudySession", StudySessionSchema);
 
 export default StudySession;

@@ -59,15 +59,15 @@ export async function PATCH(request, { params }) {
       throw error;
     }
 
-    const { values, error } = parseDocument(body, true);
-    if (error) {
-      return NextResponse.json({ error }, { status: 400 });
+    const parsed = parseDocument(body, true);
+    if ("error" in parsed) {
+      return NextResponse.json({ error: parsed.error }, { status: 400 });
     }
 
     await connectDB();
     const document = await Document.findOneAndUpdate(
       { _id: documentId, userId },
-      { $set: values },
+      { $set: parsed.values },
       { new: true, runValidators: true },
     ).lean();
     if (!document) {

@@ -167,19 +167,27 @@ Explanation level: ${settings.level || "standard"}
 
     await chat.save();
 
-    const tokenUsage = completion.usage || {};
+    const tokenUsage = completion.usage;
+    const promptTokens = tokenUsage?.prompt_tokens;
     const inputTokens =
-      Number.isSafeInteger(tokenUsage.prompt_tokens) && tokenUsage.prompt_tokens >= 0
-      ? tokenUsage.prompt_tokens
+      typeof promptTokens === "number" &&
+      Number.isSafeInteger(promptTokens) &&
+      promptTokens >= 0
+      ? promptTokens
       : null;
+    const completionTokens = tokenUsage?.completion_tokens;
     const outputTokens =
-      Number.isSafeInteger(tokenUsage.completion_tokens) &&
-      tokenUsage.completion_tokens >= 0
-      ? tokenUsage.completion_tokens
+      typeof completionTokens === "number" &&
+      Number.isSafeInteger(completionTokens) &&
+      completionTokens >= 0
+      ? completionTokens
       : null;
+    const providerTotalTokens = tokenUsage?.total_tokens;
     const totalTokens =
-      Number.isSafeInteger(tokenUsage.total_tokens) && tokenUsage.total_tokens >= 0
-      ? tokenUsage.total_tokens
+      typeof providerTotalTokens === "number" &&
+      Number.isSafeInteger(providerTotalTokens) &&
+      providerTotalTokens >= 0
+      ? providerTotalTokens
       : inputTokens !== null && outputTokens !== null
         ? inputTokens + outputTokens
         : null;

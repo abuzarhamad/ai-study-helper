@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import type { InferSchemaType, Model } from "mongoose";
 
 const DocumentSchema = new mongoose.Schema(
   {
@@ -42,7 +43,10 @@ const DocumentSchema = new mongoose.Schema(
 
 DocumentSchema.index({ userId: 1, updatedAt: -1 });
 
+export type DocumentData = InferSchemaType<typeof DocumentSchema>;
+
 const Document =
-  mongoose.models.Document || mongoose.model("Document", DocumentSchema);
+  (mongoose.models.Document as Model<DocumentData> | undefined) ??
+  mongoose.model<DocumentData>("Document", DocumentSchema);
 
 export default Document;

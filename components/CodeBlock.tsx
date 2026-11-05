@@ -1,6 +1,14 @@
-import { Check, Copy } from "lucide-react";
+"use client";
 
-export function CodeBlock({ code, language }) {
+import { Check, Copy } from "lucide-react";
+import { useState } from "react";
+
+interface CodeBlockProps {
+  code: string;
+  language: string;
+}
+
+export function CodeBlock({ code, language }: CodeBlockProps) {
   const [copied, setCopied] = useState(false);
 
   async function copyCode() {

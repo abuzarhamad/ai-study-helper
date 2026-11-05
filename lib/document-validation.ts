@@ -1,12 +1,43 @@
-const MAX_DOCUMENT_BYTES = 1000000;
-const allowedContentTypes = ["text/plain", "text/markdown"];
+import type { DocumentData } from "@/models/document";
 
-export function parseDocument(body, partial = false) {
-  if (!body || typeof body !== "object" || Array.isArray(body)) {
+const MAX_DOCUMENT_BYTES = 1000000;
+const allowedContentTypes = ["text/plain", "text/markdown"] as const;
+
+type DocumentValues = Pick<
+  DocumentData,
+  "title" | "content" | "sizeBytes" | "fileName" | "contentType"
+>;
+type ValidationResult<Value> = { error: string } | { values: Value };
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isAllowedContentType(
+  value: unknown,
+): value is DocumentValues["contentType"] {
+  return (
+    typeof value === "string" &&
+    allowedContentTypes.some((contentType) => contentType === value)
+  );
+}
+
+export function parseDocument(
+  body: unknown,
+): ValidationResult<DocumentValues>;
+export function parseDocument(
+  body: unknown,
+  partial: true,
+): ValidationResult<Partial<DocumentValues>>;
+export function parseDocument(
+  body: unknown,
+  partial = false,
+): ValidationResult<Partial<DocumentValues>> {
+  if (!isRecord(body)) {
     return { error: "Invalid request body." };
   }
 
-  const values = {};
+  const values: Partial<DocumentValues> = {};
 
   if (!partial || body.title !== undefined) {
     if (typeof body.title !== "string" || !body.title.trim() || body.title.trim().length > 200) {
@@ -37,7 +68,7 @@ export function parseDocument(body, partial = false) {
   }
 
   if (body.contentType !== undefined) {
-    if (!allowedContentTypes.includes(body.contentType)) {
+    if (!isAllowedContentType(body.contentType)) {
       return { error: "Content type must be text/plain or text/markdown." };
     }
     values.contentType = body.contentType;
@@ -49,10 +80,28 @@ export function parseDocument(body, partial = false) {
     return { error: "No document changes provided." };
   }
 
+  if (!partial) {
+    return {
+      values: values as DocumentValues,
+    };
+  }
+
   return { values };
 }
 
-export function serializeDocument(document, includeContent = false) {
+type SerializedDocumentSource = Pick<
+  DocumentData,
+  "title" | "fileName" | "contentType" | "sizeBytes" | "content"
+> & {
+  _id: { toString(): string };
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+export function serializeDocument(
+  document: SerializedDocumentSource,
+  includeContent = false,
+) {
   return {
     id: document._id.toString(),
     title: document.title,

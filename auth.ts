@@ -1,4 +1,5 @@
-import NextAuth from "next-auth";
+import NextAuth, { type NextAuthConfig } from "next-auth";
+import type { DefaultSession } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import connectDB from "./lib/mongodb";
@@ -6,7 +7,7 @@ import User from "./models/User";
 import GitHubProvider from "next-auth/providers/github";
 import GoogleProvider from "next-auth/providers/google";
 
-const providers = [
+const providers: NextAuthConfig["providers"] = [
   Credentials({
     name: "Credentials",
     credentials: {
@@ -71,7 +72,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       return token;
     },
     async session({ session, token }) {
-      if (session.user) {
+      if (session.user && typeof token.id === "string") {
         session.user.id = token.id;
       }
       return session;
@@ -81,3 +82,17 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     signIn: "/login",
   },
 });
+
+declare module "next-auth" {
+  interface Session {
+    user: {
+      id: string;
+    } & NonNullable<DefaultSession["user"]>;
+  }
+}
+
+declare module "@auth/core/jwt" {
+  interface JWT {
+    id?: string;
+  }
+}

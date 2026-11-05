@@ -16,6 +16,6 @@
     } catch (error) {
       console.error("Load chats error:", error);
     } finally {
-      setChatsLoading(false);
+      loading(false);
     }
   }

@@ -5,7 +5,7 @@ import Usage from "@/models/usage";
 
 export const runtime = "nodejs";
 
-function parseDate(value) {
+function parseDate(value: string | null) {
   if (value === null) {
     return { valid: true, date: null };
   }
@@ -36,7 +36,10 @@ export async function GET(request) {
       return NextResponse.json({ error: "Invalid usage date range." }, { status: 400 });
     }
 
-    const filter = { userId };
+    const filter: {
+      userId: string;
+      createdAt?: { $gte?: Date; $lte?: Date };
+    } = { userId };
     if (from.date || to.date) {
       filter.createdAt = {};
       if (from.date) filter.createdAt.$gte = from.date;

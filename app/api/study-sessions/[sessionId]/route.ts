@@ -65,18 +65,18 @@ export async function PATCH(request, { params }) {
       throw error;
     }
 
-    const { values, error } = parseStudySession(body, true);
-    if (error) {
-      return NextResponse.json({ error }, { status: 400 });
+    const parsed = parseStudySession(body, true);
+    if ("error" in parsed) {
+      return NextResponse.json({ error: parsed.error }, { status: 400 });
     }
-    if (!Object.keys(values).length) {
+    if (!Object.keys(parsed.values).length) {
       return NextResponse.json({ error: "No study session changes provided." }, { status: 400 });
     }
 
     await connectDB();
     const session = await StudySession.findOneAndUpdate(
       { _id: sessionId, userId },
-      { $set: values },
+      { $set: parsed.values },
       { new: true, runValidators: true },
     ).lean();
     if (!session) {
